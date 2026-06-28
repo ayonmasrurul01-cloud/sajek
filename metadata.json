@@ -1,0 +1,6 @@
+{
+  "name": "Meghpunji Resort Sajek",
+  "description": "Luxury eco-cottage reservation platform for Meghpunji Resort in Sajek Valley, featuring a real-time reservation dashboard, guest management tools, payment gateway simulation, and automated email visualizers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "booking": {
+      "title": "Booking",
+      "description": "Cottage reservation records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerName": { "type": "string" },
+        "customerEmail": { "type": "string", "format": "email" },
+        "customerPhone": { "type": "string" },
+        "cottageId": { "type": "string" },
+        "cottageName": { "type": "string" },
+        "checkIn": { "type": "string", "format": "date" },
+        "checkOut": { "type": "string", "format": "date" },
+        "adults": { "type": "integer" },
+        "children": { "type": "integer" },
+        "totalAmount": { "type": "number" },
+        "amountPaid": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["bkash", "card", "cash"] },
+        "paymentStatus": { "type": "string", "enum": ["unpaid", "partial", "paid"] },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "checked_in", "checked_out", "cancelled"] },
+        "transactionId": { "type": "string" },
+        "adminNotes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "customerName", "customerEmail", "customerPhone", "cottageId", "cottageName", "checkIn", "checkOut", "adults", "children", "totalAmount", "amountPaid", "paymentMethod", "paymentStatus", "status", "createdAt"]
+    },
+    "admin": {
+      "title": "Admin",
+      "description": "Admin user permission record",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "email_log": {
+      "title": "EmailLog",
+      "description": "A record of automated or manual email notifications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bookingId": { "type": "string" },
+        "recipientEmail": { "type": "string", "format": "email" },
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["sent", "queued", "failed"] },
+        "templateType": { "type": "string", "enum": ["confirmation", "check_in", "payment_received", "check_out"] }
+      },
+      "required": ["id", "bookingId", "recipientEmail", "subject", "body", "sentAt", "status", "templateType"]
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "Contact message submitted via contact form",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "message": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "message", "createdAt"]
+    },
+    "newsletter": {
+      "title": "Newsletter",
+      "description": "Newsletter subscription email list",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "subscribedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "subscribedAt"]
+    }
+  },
+  "firestore": {
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/booking" },
+      "description": "Guest and Admin Cottage Bookings"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/admin" },
+      "description": "List of authorized administrator user IDs"
+    },
+    "/email_logs/{logId}": {
+      "schema": { "$ref": "#/entities/email_log" },
+      "description": "Logs of notification emails sent to guests"
+    },
+    "/contacts/{contactId}": {
+      "schema": { "$ref": "#/entities/contact" },
+      "description": "Contact Form Message Submissions"
+    },
+    "/newsletters/{emailHash}": {
+      "schema": { "$ref": "#/entities/newsletter" },
+      "description": "Newsletter Subscriptions"
+    }
+  }
+}

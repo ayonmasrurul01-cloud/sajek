@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Global Safety Net: Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Core Helper Functions ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token != null && request.auth.token.email != null && (
+          request.auth.token.email == "admin@gmail.com" ||
+          request.auth.token.email.matches("(?i).*admin.*")
+        ))
+      );
+    }
+
+    // --- Bookings Collection Rules ---
+    match /bookings/{bookingId} {
+      
+      // Structure/Schema validation on create
+      function isValidBookingCreate(data) {
+        return data.id is string && data.id.size() <= 64
+            && data.customerName is string && data.customerName.size() <= 128
+            && data.customerEmail is string && data.customerEmail.size() <= 128
+            && data.customerPhone is string && data.customerPhone.size() <= 64
+            && data.cottageId is string && data.cottageId.size() <= 64
+            && data.cottageName is string && data.cottageName.size() <= 128
+            && data.checkIn is string && data.checkIn.size() <= 32
+            && data.checkOut is string && data.checkOut.size() <= 32
+            && data.adults is int
+            && data.children is int
+            && data.totalAmount is number
+            && data.amountPaid is number
+            && data.paymentMethod is string && data.paymentMethod in ['bkash', 'card', 'cash']
+            && data.paymentStatus is string && data.paymentStatus in ['unpaid', 'partial', 'paid']
+            && data.status is string && data.status in ['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled']
+            && data.createdAt is string
+            && (data.userId == request.auth.uid || isAdmin());
+      }
+
+      // Read allows: Admins can see all, guests can only see their own
+      allow read: if isSignedIn() && (isAdmin() || (resource.data.userId == request.auth.uid));
+      
+      // Create allows: Signed-in user can create booking with valid ID and schema
+      allow create: if isSignedIn() 
+                    && isValidId(bookingId) 
+                    && isValidBookingCreate(incoming());
+
+      // Update allows: Admins can update any fields. Guests can only cancel their booking or add payment/trx details.
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          existing().userId == request.auth.uid
+          && incoming().userId == existing().userId
+          && incoming().id == existing().id
+          && (
+            // Action 1: Guest Cancelling their own booking
+            (incoming().status == 'cancelled' && incoming().diff(existing()).affectedKeys().hasOnly(['status'])) ||
+            // Action 2: Guest updating transaction info after payment
+            (incoming().diff(existing()).affectedKeys().hasOnly(['transactionId', 'amountPaid', 'paymentStatus', 'paymentMethod']))
+          )
+        )
+      );
+
+      // Only admins can delete bookings
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    // --- Admins Collection Rules ---
+    match /admins/{adminId} {
+      // Allows anyone signed-in to read if they are checking their own admin state
+      allow read: if isSignedIn();
+      // Only system administrators/backend can write (e.g. bootstrapped at login if matching the authorized user)
+      allow create, update: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow delete: if isSignedIn() && isAdmin();
+    }
+
+    // --- Email Logs Rules ---
+    match /email_logs/{logId} {
+      allow read: if isSignedIn() && (isAdmin() || (resource.data.recipientEmail == request.auth.token.email));
+      allow create, update, delete: if isSignedIn() && isAdmin();
+    }
+
+    // --- Contacts/Feedback Rules ---
+    match /contacts/{contactId} {
+      allow read, delete: if isSignedIn() && isAdmin();
+      allow create: if isValidId(contactId)
+                    && incoming().name is string && incoming().name.size() <= 128
+                    && incoming().email is string && incoming().email.size() <= 128
+                    && incoming().message is string && incoming().message.size() <= 5000;
+      allow update: if false; // Contact submissions are immutable
+    }
+
+    // --- Newsletter Subscriptions Rules ---
+    match /newsletters/{emailHash} {
+      allow read, delete: if isSignedIn() && isAdmin();
+      allow create: if incoming().email is string && incoming().email.size() <= 128;
+      allow update: if false; // Newsletter entries are immutable
+    }
+  }
+}
